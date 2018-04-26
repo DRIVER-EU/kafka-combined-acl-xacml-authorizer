@@ -1,0 +1,33 @@
+<assembly>
+	<id>bin</id>
+	<!-- Generates a package containing the project JAR with dependencies (except the one(s) provided with Apache Kafka) -->
+	<formats>
+		<format>tar.gz</format>
+	</formats>
+
+	<!-- Adds dependencies to zip package under lib directory -->
+	<dependencySets>
+		<dependencySet>
+			<useProjectArtifact>false</useProjectArtifact>
+			<outputDirectory>lib</outputDirectory>
+		</dependencySet>
+	</dependencySets>
+	<fileSets>
+		<fileSet>
+			<directory>${project.basedir}</directory>
+			<outputDirectory>/</outputDirectory>
+			<includes>
+				<include>README*</include>
+				<include>LICENSE</include>
+				<include>NOTICE*</include>
+			</includes>
+		</fileSet>
+		<!-- <fileSet> -->
+		<!-- <directory>etc</directory> -->
+		<!-- <outputDirectory></outputDirectory> -->
+		<!-- <includes> -->
+		<!-- <include>startup.*</include> -->
+		<!-- </includes> -->
+		<!-- </fileSet> -->
+	</fileSets>
+</assembly>
