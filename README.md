@@ -3,9 +3,10 @@
 ## Terms
 * **[XACML](http://docs.oasis-open.org/xacml/3.0/xacml-3.0-core-spec-os-en.html)**: eXtensisble Access Control Markup Language for access policies and access requests/responses, standardized by OASIS.
 * **PDP**: Policy Decision Point, as defined in XACML standard.
+* **PAP**: Policy Administration Point, as defined in XACML standard.
 
 ## Project description
-This project provides an [Authorizer](https://kafka.apache.org/documentation/#security_authz) implementation for Apache Kafka that extends the Kafa's default authorizer (`kafka.security.auth.SimpleAclAuthorizer`) to enable getting XACML authorization decisions from a XACML-enabled PDP's REST API as well, according to the [REST Profile of XACML 3.0](http://docs.oasis-open.org/xacml/xacml-rest/v1.0/xacml-rest-v1.0.html). [AuthzForce Server](https://github.com/authzforce/server) and [AuthzForce RESTful PDP](https://github.com/authzforce/restful-pdp) both provide such REST API.
+This project provides an [Authorizer](https://kafka.apache.org/documentation/#security_authz) implementation for Apache Kafka that extends the Kafa's default authorizer (`kafka.security.auth.SimpleAclAuthorizer`) to enable getting XACML authorization decisions from a XACML-enabled PDP's REST API as well, according to the [REST Profile of XACML 3.0](http://docs.oasis-open.org/xacml/xacml-rest/v1.0/xacml-rest-v1.0.html). [AuthzForce Server](https://github.com/authzforce/server) and [AuthzForce RESTful PDP](https://github.com/authzforce/restful-pdp) both provide such REST API. Usually, the latter is enough for simple use cases, unless you need a PAP API, multi-tenancy, etc. in which case AuthzForce Server is a better fit (see the [documentation for the full list of features](http://authzforce-ce-fiware.readthedocs.io/en/latest/Features.html))
 
 In other terms, you can still use [Kafka ACLs](http://kafka.apache.org/documentation.html#security_authz) with this same authorizer as you would with the default one. XACML evaluation must be enabled explicitly by setting specific properties as described later below. *XACML evaluation* here stands for the extra process of getting a XACML authorization decision from a remote PDP according to the REST Profile of XACML 3.0.
 
