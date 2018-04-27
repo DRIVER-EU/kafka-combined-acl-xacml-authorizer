@@ -15,7 +15,7 @@ The authorizer combines Kafka ACL evaluation with XACML evaluation as follows:
 * If ACL evaluation returns Permit, return Permit.
 * Else: 
   * If XACML evaluation is disabled, return Deny.
-  * Else return the result of XACML evaluation.
+  * Else: If and only if the result of XACML evaluation is Permit, return Permit.
   
 ## Installation
 Get the `tar.gz` distribution from the [latest release on the GitHub repository](https://github.com/DRIVER-EU/kafka-combined-acl-xacml-authorizer/releases) and extract the files to some folder, e.g. `/opt/authzforce-ce-kafka-extensions`. You should have a `lib` folder inside.
@@ -37,14 +37,15 @@ To enable XACML evaluation, set the extra following authorizer properties:
 |`resourceType`|[org.apache.kafka.common.resource.ResourceType](https://kafka.apache.org/11/javadoc/org/apache/kafka/common/resource/ResourceType.html)|resource type|
 |`resourceName`|`String`|resource name|
 
-
 For example:
  
 ```json
-org.ow2.authzforce.kafka.pep.xacml.req.tmpl={"Request":{"Category":[{"CategoryId":"urn:oasis:names:tc:xacml:1.0:subject-category:access-subject","Attribute":[{"AttributeId":"urn:oasis:names:tc:xacml:1.0:subject:subject-id","DataType":"http://www.w3.org/2001/XMLSchema#string","Value":"${principal.name}"},{"AttributeId":"urn:oasis:names:tc:xacml:1.0:subject:authn-locality:dns-name","DataType":"urn:oasis:names:tc:xacml:2.0:data-type:dnsName","Value":"${clientHost.hostName}"},{"AttributeId":"urn:oasis:names:tc:xacml:3.0:subject:authn-locality:ip-address","DataType":"urn:oasis:names:tc:xacml:2.0:data-type:ipAddress","Value":"${clientHost.hostAddress}"}]},{"CategoryId":"urn:oasis:names:tc:xacml:3.0:attribute-category:action","Attribute":[{"AttributeId":"urn:oasis:names:tc:xacml:1.0:action:action-id","DataType":"http://www.w3.org/2001/XMLSchema#string","Value":"${operation}",}]},{"CategoryId":"urn:oasis:names:tc:xacml:3.0:attribute-category:resource","Attribute":[{"AttributeId":"urn:thalesgroup:xacml:resource:resource-type","DataType":"http://www.w3.org/2001/XMLSchema#string","Value":"${resourceType}"},{"AttributeId":"urn:oasis:names:tc:xacml:1.0:resource:resource-id","DataType":"http://www.w3.org/2001/XMLSchema#string","Value":"${resourceName}"}]},{"CategoryId":"urn:oasis:names:tc:xacml:3.0:attribute-category:environment","Attribute":[{"AttributeId":"urn:thalesgroup:xacml:environment:deployment-environment","DataType":"http://www.w3.org/2001/XMLSchema#string","Value":"DEV"}]}]}}
+org.ow2.authzforce.kafka.pep.xacml.req.tmpl={"Request"\:{"Category"\:[{"CategoryId"\:"urn\:oasis\:names\:tc\:xacml\:1.0\:subject-category\:access-subject","Attribute"\:[{"AttributeId"\:"urn\:oasis\:names\:tc\:xacml\:1.0\:subject\:subject-id","DataType"\:"http\://www.w3.org/2001/XMLSchema#string","Value"\:"${principal.name}"},{"AttributeId"\:"urn\:oasis\:names\:tc\:xacml\:1.0\:subject\:authn-locality\:dns-name","DataType"\:"urn\:oasis\:names\:tc\:xacml\:2.0\:data-type\:dnsName","Value"\:"${clientHost.hostName}"},{"AttributeId"\:"urn\:oasis\:names\:tc\:xacml\:3.0\:subject\:authn-locality\:ip-address","DataType"\:"urn\:oasis\:names\:tc\:xacml\:2.0\:data-type\:ipAddress","Value"\:"${clientHost.hostAddress}"}]},{"CategoryId"\:"urn\:oasis\:names\:tc\:xacml\:3.0\:attribute-category\:action","Attribute"\:[{"AttributeId"\:"urn\:oasis\:names\:tc\:xacml\:1.0\:action\:action-id","DataType"\:"http\://www.w3.org/2001/XMLSchema#string","Value"\:"${operation}",}]},{"CategoryId"\:"urn\:oasis\:names\:tc\:xacml\:3.0\:attribute-category\:resource","Attribute"\:[{"AttributeId"\:"urn\:thalesgroup\:xacml\:resource\:resource-type","DataType"\:"http\://www.w3.org/2001/XMLSchema#string","Value"\:"${resourceType}"},{"AttributeId"\:"urn\:oasis\:names\:tc\:xacml\:1.0\:resource\:resource-id","DataType"\:"http\://www.w3.org/2001/XMLSchema#string","Value"\:"${resourceName}"}]},{"CategoryId"\:"urn\:oasis\:names\:tc\:xacml\:3.0\:attribute-category\:environment","Attribute"\:[{"AttributeId"\:"urn\:thalesgroup\:xacml\:environment\:deployment-environment","DataType"\:"http\://www.w3.org/2001/XMLSchema#string","Value"\:"DEV"}]}]}}
 ```
 
-This example is a result of compacting the [template in the source](src/test/resources/request.xacml.json.ftl) on one line. It should be sufficient for most cases.
+This example is derived from the [template in the source](src/test/resources/request.xacml.json.ftl), i.e. adapted for the Java Properties format, and should be applicable to most cases.
+
+As shown in this example, the property value must be formatted according to [Java Properties API](https://docs.oracle.com/javase/8/docs/api/index.html?java/util/Properties.html). In particular, you must **either compact your JSON template on one line; or on multiple lines but only if you terminate each line with a backslash as mentioned on [Java Properties#load(Reader) API](https://docs.oracle.com/javase/8/docs/api/java/util/Properties.html#load-java.io.Reader-). You must also escape all ':' with backslash**, because ':' is a special character (like '=') in Java properties file format. 
 
 ## Starting Kafka
 Make sure Zookeeper is started first:
