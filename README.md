@@ -37,11 +37,13 @@ To enable XACML evaluation, set the extra following authorizer properties:
 |`resourceName`|`String`|resource name|
 
 
-For example (see [src/test/resources/request.xacml.json.ftl] for a more readable form):
+For example:
  
 ```json
 org.ow2.authzforce.kafka.pep.xacml.req.tmpl={"Request":{"Category":[{"CategoryId":"urn:oasis:names:tc:xacml:1.0:subject-category:access-subject","Attribute":[{"AttributeId":"urn:oasis:names:tc:xacml:1.0:subject:subject-id","DataType":"http://www.w3.org/2001/XMLSchema#string","Value":"${principal.name}"},{"AttributeId":"urn:oasis:names:tc:xacml:1.0:subject:authn-locality:dns-name","DataType":"urn:oasis:names:tc:xacml:2.0:data-type:dnsName","Value":"${clientHost.hostName}"},{"AttributeId":"urn:oasis:names:tc:xacml:3.0:subject:authn-locality:ip-address","DataType":"urn:oasis:names:tc:xacml:2.0:data-type:ipAddress","Value":"${clientHost.hostAddress}"}]},{"CategoryId":"urn:oasis:names:tc:xacml:3.0:attribute-category:action","Attribute":[{"AttributeId":"urn:oasis:names:tc:xacml:1.0:action:action-id","DataType":"http://www.w3.org/2001/XMLSchema#string","Value":"${operation}",}]},{"CategoryId":"urn:oasis:names:tc:xacml:3.0:attribute-category:resource","Attribute":[{"AttributeId":"urn:thalesgroup:xacml:resource:resource-type","DataType":"http://www.w3.org/2001/XMLSchema#string","Value":"${resourceType}"},{"AttributeId":"urn:oasis:names:tc:xacml:1.0:resource:resource-id","DataType":"http://www.w3.org/2001/XMLSchema#string","Value":"${resourceName}"}]},{"CategoryId":"urn:oasis:names:tc:xacml:3.0:attribute-category:environment","Attribute":[{"AttributeId":"urn:thalesgroup:xacml:environment:deployment-environment","DataType":"http://www.w3.org/2001/XMLSchema#string","Value":"DEV"}]}]}}
 ```
+
+This example is a result of compacting the [template in the source](src/test/resources/request.xacml.json.ftl) on one line. It should work in most cases.
 
 ## Starting Kafka
 Add the all JARs in the `lib` folder extracted earlier (*Installation* section) to the CLASSPATH environment variable before starting Kafka:
