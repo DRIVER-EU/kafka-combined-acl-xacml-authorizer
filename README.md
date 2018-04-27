@@ -1,4 +1,4 @@
-# RESTful XACML-enabled Authorizer for Apache Kafka
+# XACML-enabled Authorizer for Apache Kafka
 
 ## Terms
 * **[XACML](http://docs.oasis-open.org/xacml/3.0/xacml-3.0-core-spec-os-en.html)**: eXtensisble Access Control Markup Language for access policies and access requests/responses, standardized by OASIS.
