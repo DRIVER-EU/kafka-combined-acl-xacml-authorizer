@@ -1,5 +1,5 @@
 /**
- * Copyright 2012-2018 Thales Services SAS.
+ * Copyright 2018 Thales Services SAS.
  *
  * This file is part of AuthzForce CE.
  *
@@ -172,8 +172,8 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 		/*
 		 * Denied by ACL and pdpClient != null. Is it denied by PDP?
 		 */
-		LOGGER.debug("Authorization denied by SimpleAclAuthorizer. Evaluating XACML request in case of Permit...");
-		final Map<String, Object> root = ImmutableMap.of("clientAddress", session.clientAddress(), "principal", session.principal(), "operation", operation.toJava(), "resourceType",
+		LOGGER.debug("Authorization denied by SimpleAclAuthorizer. Trying XACML evaluation...");
+		final Map<String, Object> root = ImmutableMap.of("clientHost", session.clientAddress(), "principal", session.principal(), "operation", operation.toJava(), "resourceType",
 		        resource.resourceType().toJava(), "resourceName", resource.name());
 		final StringWriter out = new StringWriter();
 		try

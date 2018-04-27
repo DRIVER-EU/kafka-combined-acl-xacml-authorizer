@@ -9,13 +9,18 @@
                 [
                     {
                         "AttributeId": "urn:oasis:names:tc:xacml:1.0:subject:subject-id",
-                        "DataType":"urn:oasis:names:tc:xacml:1.0:data-type:x500Name",
-                        "Value": "${cert.subjectX500Principal}"
+                        "DataType":"http://www.w3.org/2001/XMLSchema#string",
+                        "Value": "${principal.name}"
+                    },
+                    {
+                        "AttributeId": "urn:oasis:names:tc:xacml:1.0:subject:authn-locality:dns-name",
+                        "DataType":"urn:oasis:names:tc:xacml:2.0:data-type:dnsName",
+                        "Value": "${clientHost.hostName}"
                     },
                     {
                         "AttributeId": "urn:oasis:names:tc:xacml:3.0:subject:authn-locality:ip-address",
                         "DataType":"urn:oasis:names:tc:xacml:2.0:data-type:ipAddress",
-                        "Value": "${clientAddress.hostAddress}"
+                        "Value": "${clientHost.hostAddress}"
                     }
                 ]
             },
@@ -26,7 +31,8 @@
                 [
                     {
                         "AttributeId": "urn:oasis:names:tc:xacml:1.0:action:action-id",
-                        "Value": "${action}",
+                        "DataType":"http://www.w3.org/2001/XMLSchema#string",
+                        "Value": "${operation}",
                     }
                 ]
             },
@@ -36,8 +42,25 @@
                 "Attribute":
                 [
                     {
+                        "AttributeId": "urn:thalesgroup:xacml:resource:resource-type",
+                        "DataType":"http://www.w3.org/2001/XMLSchema#string",
+                        "Value": "${resourceType}"
+                    },
+                     {
                         "AttributeId": "urn:oasis:names:tc:xacml:1.0:resource:resource-id",
-                        "Value": "${topic}"
+                        "DataType":"http://www.w3.org/2001/XMLSchema#string",
+                        "Value": "${resourceName}"
+                    }
+                ]
+            },
+            {
+                "CategoryId": "urn:oasis:names:tc:xacml:3.0:attribute-category:environment",
+                "Attribute":
+                [
+                    {
+                        "AttributeId": "urn:thalesgroup:xacml:environment:deployment-environment",
+                        "DataType":"http://www.w3.org/2001/XMLSchema#string",
+                        "Value": "DEV"
                     }
                 ]
             }

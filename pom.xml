@@ -9,8 +9,15 @@
 		<version>7.2.0</version>
 	</parent>
 	<artifactId>authzforce-ce-kafka-extensions</artifactId>
-	<version>0.0.1-SNAPSHOT</version>
+	<version>0.1.0-SNAPSHOT</version>
 	<name>AuthzForce CE - Extensions for Apache Kafka</name>
+	<repositories>
+		<repository>
+			<!-- Required by owasp dependency-check plugin for find info (POM) about dependency org.everit.json.schema in child modules -->
+			<id>jitpack.io</id>
+			<url>https://jitpack.io</url>
+		</repository>
+	</repositories>
 	<dependencies>
 		<dependency>
 			<groupId>org.slf4j</groupId>
@@ -21,6 +28,7 @@
 			<groupId>org.apache.kafka</groupId>
 			<artifactId>kafka_2.12</artifactId>
 			<version>1.1.0</version>
+			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.freemarker</groupId>
@@ -60,6 +68,12 @@
 			</exclusions>
 		</dependency>
 		<dependency>
+			<groupId>com.salesforce.kafka.test</groupId>
+			<artifactId>kafka-junit4</artifactId>
+			<version>2.2.0</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
 			<groupId>org.ow2.authzforce</groupId>
 			<artifactId>authzforce-ce-restful-pdp-cxf-spring-boot-server</artifactId>
 			<version>1.3.0</version>
@@ -78,6 +92,8 @@
 					<!-- <suppressionFile>owasp-dependency-check-suppression.xml</suppressionFile> -->
 					<!-- TODO: fix vulnerabilities and switch back to true -->
 					<failBuildOnAnyVulnerability>false</failBuildOnAnyVulnerability>
+					<!-- TODO: change back to false before release -->
+					<skip>true</skip>
 				</configuration>
 				<executions>
 					<execution>
