@@ -47,8 +47,13 @@ org.ow2.authzforce.kafka.pep.xacml.req.tmpl={"Request":{"Category":[{"CategoryId
 This example is a result of compacting the [template in the source](src/test/resources/request.xacml.json.ftl) on one line. It should be sufficient for most cases.
 
 ## Starting Kafka
+Make sure Zookeeper is started first:
+```sh
+~/DRIVER+/kafka_2.11-1.1.0$ bin/zookeeper-server-start.sh config/zookeeper.properties
+```
+
 Add the all JARs in the `lib` folder extracted earlier (*Installation* section) to the CLASSPATH environment variable before starting Kafka, for example:
 
 ```sh
-CLASSPATH=/opt/authzforce-ce-kafka-extensions/lib/* bin/kafka-server-start.sh config/server.properties
+~/DRIVER+/kafka_2.11-1.1.0$ CLASSPATH=/opt/authzforce-ce-kafka-extensions/lib/* bin/kafka-server-start.sh config/server.properties
 ```
