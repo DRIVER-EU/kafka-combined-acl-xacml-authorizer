@@ -46,8 +46,8 @@ org.ow2.authzforce.kafka.pep.xacml.req.tmpl={"Request":{"Category":[{"CategoryId
 This example is a result of compacting the [template in the source](src/test/resources/request.xacml.json.ftl) on one line. It should work in most cases.
 
 ## Starting Kafka
-Add the all JARs in the `lib` folder extracted earlier (*Installation* section) to the CLASSPATH environment variable before starting Kafka:
+Add the all JARs in the `lib` folder extracted earlier (*Installation* section) to the CLASSPATH environment variable before starting Kafka, for example:
 
 ```sh
-CLASSPATH=/home/darkcyrus/eclipse-workspace/authzforce-ce-kafka-extensions/target/authzforce-ce-kafka-extensions-0.1.0-SNAPSHOT/lib/* bin/kafka-server-start.sh config/server.properties
+CLASSPATH=/opt/authzforce-ce-kafka-extensions/lib/* bin/kafka-server-start.sh config/server.properties
 ```
