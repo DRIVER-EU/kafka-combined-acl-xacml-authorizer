@@ -17,13 +17,15 @@
  */
 package org.ow2.authzforce.kafka.pep;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Map;
-
-import javax.ws.rs.core.MediaType;
+import java.util.stream.Collectors;
 
 import org.apache.cxf.ext.logging.LoggingFeature;
 import org.apache.cxf.feature.Feature;
@@ -34,6 +36,7 @@ import org.ow2.authzforce.xacml.json.model.LimitsCheckingJSONObject;
 import org.ow2.authzforce.xacml.json.model.Xacml3JsonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.util.ResourceUtils;
 
 import com.google.common.collect.ImmutableMap;
 
@@ -42,23 +45,46 @@ import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateExceptionHandler;
 import kafka.network.RequestChannel.Session;
+import kafka.security.auth.Authorizer;
 import kafka.security.auth.Operation;
 import kafka.security.auth.Resource;
 import kafka.security.auth.SimpleAclAuthorizer;
 
+/**
+ * Combined ACL and XACML-based {@link Authorizer} for Apache Kafka. Gets authorization decisions from a XACML PDP's REST API - as defined by OASIS standard 'REST Profile of XACML 3.0' - iff Kafka ACL
+ * (evaluated by {@link SimpleAclAuthorizer}) returns Deny. To enable XACML authorization, you need to set two extra configuration properties:
+ * <ul>
+ * <li>{@value #XACML_PDP_URL_CFG_PROPERTY_NAME}: XACML PDP resource's URL, as defined by <a href="http://docs.oasis-open.org/xacml/xacml-rest/v1.0/xacml-rest-v1.0.html">REST Profile of XACML 3.0</a>,
+ * §2.2.2, e.g. {@code https://serverhostname/services/pdp}</li>
+ * <li>{@value #XACML_REQUEST_TEMPLATE_LOCATION_CFG_PROPERTY_NAME}: location of a file that contains a <a href="https://freemarker.apache.org/">Freemarker</a> template of XACML Request formatted
+ * according to <a href="http://docs.oasis-open.org/xacml/xacml-json-http/v1.0/xacml-json-http-v1.0.html">JSON Profile of XACML 3.0</a>, in which you can use
+ * <a href="https://freemarker.apache.org/docs/dgui_template_exp.html">Freemarker expressions</a>, enclosed between <code>${</code> and <code>}</code>, and have access to the following
+ * <a href="https://freemarker.apache.org/docs/dgui_template_exp.html#dgui_template_exp_var_toplevel">top-level variables</a> from Kafka's authorization context:
+ * <ul>
+ * <li><code>clientHost</code> ({@link java.net.InetAddress}): client/user host name or IP address</li>
+ * <li><code>principal</code> ({@link org.apache.kafka.common.security.auth.KafkaPrincipal}): user principal</li>
+ * <li><code>operation</code> ({@link org.apache.kafka.common.acl.AclOperation}): operation</li>
+ * <li><code>resourceType</code> ({@link org.apache.kafka.common.resource.ResourceType}): resource type</li>
+ * <li><code>resourceName</code> ({@link String}): resource name</li>
+ * </ul>
+ * </li>
+ * </ul>
+ */
 public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 {
 	private static final Logger LOGGER = LoggerFactory.getLogger(CombinedXacmlAclAuthorizer.class);
 
+	private static final String XACML_JSON_MEDIA_TYPE = "application/xacml+json";
+
 	/**
 	 * Name of Kafka configuration property specifying the RESTful XACML PDP resource's URL (e.g. https://services.example.com/pdp), as defined by REST Profile of XACML, §2.2.2
 	 */
-	public static final String XACML_PDP_URL = "org.ow2.authzforce.kafka.pep.xacml.pdp.url";
+	public static final String XACML_PDP_URL_CFG_PROPERTY_NAME = "org.ow2.authzforce.kafka.pep.xacml.pdp.url";
 
 	/**
-	 * Name of Kafka configuration property specifying the XACML Request template
+	 * Name of Kafka configuration property specifying the location to XACML Request template file. The location must be a URL resolvable by {@link ResourceUtils}.
 	 */
-	public static final String XACML_REQUEST_TEMPLATE_CFG_PROPERTY_NAME = "org.ow2.authzforce.kafka.pep.xacml.req.tmpl";
+	public static final String XACML_REQUEST_TEMPLATE_LOCATION_CFG_PROPERTY_NAME = "org.ow2.authzforce.kafka.pep.xacml.req.tmpl.location";
 
 	private static final int MAX_JSON_STRING_LENGTH = 1000;
 
@@ -80,39 +106,62 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 		{
 			super.configure(authorizerProperties);
 
-			final Object xacmlPdpUrlObj = authorizerProperties.get(XACML_PDP_URL);
+			final Object xacmlPdpUrlObj = authorizerProperties.get(XACML_PDP_URL_CFG_PROPERTY_NAME);
 			if (xacmlPdpUrlObj == null)
 			{
-				LOGGER.info("Configuration property '{}' undefined -> XACML evaluation disabled, KAFKA ACL enabled only.", XACML_PDP_URL);
+				LOGGER.info("Configuration property '{}' undefined -> XACML evaluation disabled, KAFKA ACL enabled only.", XACML_PDP_URL_CFG_PROPERTY_NAME);
 				return;
 			}
 
 			if (!(xacmlPdpUrlObj instanceof String))
 			{
-				throw new IllegalArgumentException(this + ": authorizer configuration property '" + XACML_PDP_URL + "' is not a String");
+				throw new IllegalArgumentException(this + ": authorizer configuration property '" + XACML_PDP_URL_CFG_PROPERTY_NAME + "' is not a String");
 			}
 
 			final String xacmlPdpUrlStr = (String) xacmlPdpUrlObj;
-			LOGGER.debug("XACML PDP URL set from authorizer configuration property '{}': {}", XACML_PDP_URL, xacmlPdpUrlStr);
+			LOGGER.debug("XACML PDP URL set from authorizer configuration property '{}': {}", XACML_PDP_URL_CFG_PROPERTY_NAME, xacmlPdpUrlStr);
 
 			pdpClient = WebClient
 			        .create(xacmlPdpUrlStr, Collections.singletonList(new JsonRiJaxrsProvider(/* extra parameters */)),
 			                LOGGER.isDebugEnabled() ? Collections.singletonList(new LoggingFeature()) : Collections.<Feature>emptyList(), null /* clientConfClasspathLocation */)
-			        .type(MediaType.APPLICATION_JSON_TYPE).accept(MediaType.APPLICATION_JSON_TYPE);
+			        .type(XACML_JSON_MEDIA_TYPE).accept(XACML_JSON_MEDIA_TYPE);
 
-			final Object xacmlReqTmplObj = authorizerProperties.get(XACML_REQUEST_TEMPLATE_CFG_PROPERTY_NAME);
+			final Object xacmlReqTmplObj = authorizerProperties.get(XACML_REQUEST_TEMPLATE_LOCATION_CFG_PROPERTY_NAME);
 			if (!(xacmlReqTmplObj instanceof String))
 			{
-				throw new IllegalArgumentException(this + ": authorizer configuration property '" + XACML_REQUEST_TEMPLATE_CFG_PROPERTY_NAME + "' is missing or not a String");
+				throw new IllegalArgumentException(this + ": authorizer configuration property '" + XACML_REQUEST_TEMPLATE_LOCATION_CFG_PROPERTY_NAME + "' is missing or not a String");
 			}
 
-			final String xacmlReqTmplStr = (String) xacmlReqTmplObj;
-			LOGGER.debug("Loading XACML Request template from authorizer configuration property '{}': {}", XACML_REQUEST_TEMPLATE_CFG_PROPERTY_NAME, xacmlReqTmplStr);
+			final String xacmlReqTmplFileLocation = (String) xacmlReqTmplObj;
+			LOGGER.debug("Loading XACML Request template from authorizer configuration property '{}': {}", XACML_REQUEST_TEMPLATE_LOCATION_CFG_PROPERTY_NAME, xacmlReqTmplFileLocation);
+
+			final Path xacmlReqTmplFile;
+			try
+			{
+				xacmlReqTmplFile = ResourceUtils.getFile(xacmlReqTmplFileLocation).toPath();
+			}
+			catch (final FileNotFoundException e)
+			{
+				throw new IllegalArgumentException(
+				        "XACML JSON Request template file not found at location ('" + XACML_REQUEST_TEMPLATE_LOCATION_CFG_PROPERTY_NAME + "'=) '" + xacmlReqTmplFileLocation + "'", e);
+			}
+
+			final String xacmlReqTmplStr;
+			try
+			{
+				xacmlReqTmplStr = Files.lines(xacmlReqTmplFile).collect(Collectors.joining());
+			}
+			catch (final IOException e)
+			{
+				throw new RuntimeException(
+				        "Error opening XACML JSON Request template file at location ('" + XACML_REQUEST_TEMPLATE_LOCATION_CFG_PROPERTY_NAME + "'=) '" + xacmlReqTmplFileLocation + "'", e);
+			}
 
 			final JSONObject jsonRequest = new LimitsCheckingJSONObject(new StringReader(xacmlReqTmplStr), MAX_JSON_STRING_LENGTH, MAX_JSON_CHILDREN_COUNT, MAX_JSON_DEPTH);
 			if (!jsonRequest.has("Request"))
 			{
-				throw new IllegalArgumentException("Invalid XACML JSON Request file specified by '" + XACML_REQUEST_TEMPLATE_CFG_PROPERTY_NAME + "'. Root key is not 'Request' as expected.");
+				throw new IllegalArgumentException("Invalid XACML JSON Request template file at location ('" + XACML_REQUEST_TEMPLATE_LOCATION_CFG_PROPERTY_NAME + "'=) '" + xacmlReqTmplFile
+				        + "': root key is not 'Request' as expected.");
 			}
 
 			Xacml3JsonUtils.REQUEST_SCHEMA.validate(jsonRequest);
@@ -162,17 +211,16 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 		final boolean simpleAclAuthorized = super.authorize(session, operation, resource);
 
 		/*
-		 * TODO: define combining algorithm for combining simple ACLs with XACML eval. For now, we do deny unless permit, which is the easiest to implement because it takes into account the
-		 * isSuperUser() and isEmptyAclAndAuthorized()
+		 * We do deny-unless-permit combining between ACL and XACML evaluation, which is the easiest to implement because it takes into account the isSuperUser() and isEmptyAclAndAuthorized().
 		 */
 		if (simpleAclAuthorized || this.pdpClient == null)
 		{
 			return simpleAclAuthorized;
 		}
 		/*
-		 * Denied by ACL and pdpClient != null. Is it denied by PDP?
+		 * Denied by ACL and pdpClient != null. Is it denied by XACML PDP?
 		 */
-		LOGGER.debug("Authorization denied by SimpleAclAuthorizer. Trying XACML evaluation...");
+		LOGGER.debug("Authorization denied by SimpleAclAuthorizer. Trying evaluation by XACML PDP...");
 		final Map<String, Object> root = ImmutableMap.of("clientHost", session.clientAddress(), "principal", session.principal(), "operation", operation.toJava(), "resourceType",
 		        resource.resourceType().toJava(), "resourceName", resource.name());
 		final StringWriter out = new StringWriter();
@@ -187,12 +235,13 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 		}
 
 		final String xacmlReq = out.toString();
-		LOGGER.debug("Calling PDP with client = {}, XACML request: {}", this.pdpClient, xacmlReq);
 		final JSONObject jsonRequest = new JSONObject(xacmlReq);
 		final JSONObject jsonResponse = pdpClient.post(jsonRequest, JSONObject.class);
 		Xacml3JsonUtils.RESPONSE_SCHEMA.validate(jsonResponse);
 		final String decision = jsonResponse.getJSONArray("Response").getJSONObject(0).getString("Decision");
-		return decision.equals("Permit");
+		final boolean isAuthorized = decision.equals("Permit");
+		LOGGER.debug("isAuthorized (true iff Permit) = {}", isAuthorized);
+		return isAuthorized;
 	}
 
 }

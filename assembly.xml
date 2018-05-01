@@ -10,7 +10,7 @@
 		<dependencySet>
 			<useProjectArtifact>true</useProjectArtifact>
 			<excludes>
-			<!-- Already provided with Kafka -->
+				<!-- Already provided with Kafka -->
 				<exclude>org.slf4j:slf4j-api</exclude>
 			</excludes>
 			<outputDirectory>lib</outputDirectory>
@@ -26,12 +26,12 @@
 				<include>NOTICE*</include>
 			</includes>
 		</fileSet>
-		<!-- <fileSet> -->
-		<!-- <directory>etc</directory> -->
-		<!-- <outputDirectory></outputDirectory> -->
-		<!-- <includes> -->
-		<!-- <include>startup.*</include> -->
-		<!-- </includes> -->
-		<!-- </fileSet> -->
+		<fileSet>
+			<directory>${project.basedir}/src/test/resources</directory>
+			<outputDirectory>/</outputDirectory>
+			<includes>
+				<include>request.xacml.json.ftl</include>
+			</includes>
+		</fileSet>
 	</fileSets>
 </assembly>

@@ -27,7 +27,7 @@ To enable the authorizer on Kafka, set the server's property:
 
 To enable XACML evaluation, set the extra following authorizer properties:
 * **`org.ow2.authzforce.kafka.pep.xacml.pdp.url`**: XACML PDP resource's URL, as defined by [REST Profile of XACML 3.0](http://docs.oasis-open.org/xacml/xacml-rest/v1.0/xacml-rest-v1.0.html), §2.2.2, e.g. `https://serverhostname/services/pdp` for a [AuthzForce RESTful PDP](https://github.com/authzforce/restful-pdp) instance, or `https://serverhostname/authzforce-ce/domains/XXX/pdp` for a domain `XXX` on a [AuthzForce Server](https://github.com/authzforce/server) instance.
-* **`org.ow2.authzforce.kafka.pep.xacml.req.tmpl`:** [Freemarker](https://freemarker.apache.org/) template of XACML Request formatted according to [JSON Profile of XACML 3.0](http://docs.oasis-open.org/xacml/xacml-json-http/v1.0/xacml-json-http-v1.0.html), in which you can use [Freemarker expressions](https://freemarker.apache.org/docs/dgui_template_exp.html), enclosed between `${` and `}`, and have access to the following [top-level variables](https://freemarker.apache.org/docs/dgui_template_exp.html#dgui_template_exp_var_toplevel) from Kafka's authorization context:
+* **`org.ow2.authzforce.kafka.pep.xacml.req.tmpl.location`:** location of a file that contains a [Freemarker](https://freemarker.apache.org/) template of XACML Request formatted according to [JSON Profile of XACML 3.0](http://docs.oasis-open.org/xacml/xacml-json-http/v1.0/xacml-json-http-v1.0.html), in which you can use [Freemarker expressions](https://freemarker.apache.org/docs/dgui_template_exp.html), enclosed between `${` and `}`, and have access to the following [top-level variables](https://freemarker.apache.org/docs/dgui_template_exp.html#dgui_template_exp_var_toplevel) from Kafka's authorization context:
 
 | Variable name | Variable type | Description |
 | --- | --- | --- |
@@ -37,15 +37,7 @@ To enable XACML evaluation, set the extra following authorizer properties:
 |`resourceType`|[org.apache.kafka.common.resource.ResourceType](https://kafka.apache.org/11/javadoc/org/apache/kafka/common/resource/ResourceType.html)|resource type|
 |`resourceName`|`String`|resource name|
 
-For example:
- 
-```json
-org.ow2.authzforce.kafka.pep.xacml.req.tmpl={"Request"\:{"Category"\:[{"CategoryId"\:"urn\:oasis\:names\:tc\:xacml\:1.0\:subject-category\:access-subject","Attribute"\:[{"AttributeId"\:"urn\:oasis\:names\:tc\:xacml\:1.0\:subject\:subject-id","DataType"\:"http\://www.w3.org/2001/XMLSchema#string","Value"\:"${principal.name}"},{"AttributeId"\:"urn\:oasis\:names\:tc\:xacml\:1.0\:subject\:authn-locality\:dns-name","DataType"\:"urn\:oasis\:names\:tc\:xacml\:2.0\:data-type\:dnsName","Value"\:"${clientHost.hostName}"},{"AttributeId"\:"urn\:oasis\:names\:tc\:xacml\:3.0\:subject\:authn-locality\:ip-address","DataType"\:"urn\:oasis\:names\:tc\:xacml\:2.0\:data-type\:ipAddress","Value"\:"${clientHost.hostAddress}"}]},{"CategoryId"\:"urn\:oasis\:names\:tc\:xacml\:3.0\:attribute-category\:action","Attribute"\:[{"AttributeId"\:"urn\:oasis\:names\:tc\:xacml\:1.0\:action\:action-id","DataType"\:"http\://www.w3.org/2001/XMLSchema#string","Value"\:"${operation}",}]},{"CategoryId"\:"urn\:oasis\:names\:tc\:xacml\:3.0\:attribute-category\:resource","Attribute"\:[{"AttributeId"\:"urn\:thalesgroup\:xacml\:resource\:resource-type","DataType"\:"http\://www.w3.org/2001/XMLSchema#string","Value"\:"${resourceType}"},{"AttributeId"\:"urn\:oasis\:names\:tc\:xacml\:1.0\:resource\:resource-id","DataType"\:"http\://www.w3.org/2001/XMLSchema#string","Value"\:"${resourceName}"}]},{"CategoryId"\:"urn\:oasis\:names\:tc\:xacml\:3.0\:attribute-category\:environment","Attribute"\:[{"AttributeId"\:"urn\:thalesgroup\:xacml\:environment\:deployment-environment","DataType"\:"http\://www.w3.org/2001/XMLSchema#string","Value"\:"DEV"}]}]}}
-```
-
-This example is derived from the [template in the source](src/test/resources/request.xacml.json.ftl), i.e. adapted for the Java Properties format, and should be applicable to most cases.
-
-As shown in this example, the property value must be formatted according to [Java Properties API](https://docs.oracle.com/javase/8/docs/api/index.html?java/util/Properties.html). In particular, you must **either compact your JSON template on one line; or on multiple lines but only if you terminate each line with a backslash as mentioned on [Java Properties#load(Reader) API](https://docs.oracle.com/javase/8/docs/api/java/util/Properties.html#load-java.io.Reader-). You must also escape all ':' with backslash**, because ':' is a special character (like '=') in Java properties file format. 
+For an example of XACML Request template, see the file `request.xacml.json.ftl` in the [source](src/test/resources/request.xacml.json.ftl) or in the same folder as this README if part of a release package (tar.gz). This example should be sufficient for most cases.
 
 ## Starting Kafka
 Make sure Zookeeper is started first:

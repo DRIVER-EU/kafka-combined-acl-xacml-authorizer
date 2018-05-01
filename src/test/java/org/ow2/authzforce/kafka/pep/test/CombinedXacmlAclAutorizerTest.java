@@ -18,14 +18,11 @@
 
 package org.ow2.authzforce.kafka.pep.test;
 
-import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.nio.file.Files;
 import java.util.Map;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.apache.kafka.common.acl.AclOperation;
 import org.apache.kafka.common.resource.ResourceType;
@@ -41,7 +38,6 @@ import org.springframework.boot.context.embedded.LocalServerPort;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
 import org.springframework.test.context.junit4.SpringRunner;
-import org.springframework.util.ResourceUtils;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -103,11 +99,9 @@ public class CombinedXacmlAclAutorizerTest
 	@Before
 	public void setUp() throws IOException
 	{
-		final File xacmlReqTmplFile = ResourceUtils.getFile(XACML_REQ_TMPL_LOCATION);
-
-		final String xacmlReqTmplStr = Files.lines(xacmlReqTmplFile.toPath()).collect(Collectors.joining());
-		authorizer.configure(ImmutableMap.of(KafkaConfig.ZkConnectProp(), SHARED_ZOOKEEPER_TEST_RESOURCE.getZookeeperConnectString(), CombinedXacmlAclAuthorizer.XACML_PDP_URL,
-		        "http://localhost:" + port + "/services/pdp", CombinedXacmlAclAuthorizer.XACML_REQUEST_TEMPLATE_CFG_PROPERTY_NAME, xacmlReqTmplStr));
+		authorizer.configure(ImmutableMap.of(KafkaConfig.ZkConnectProp(), SHARED_ZOOKEEPER_TEST_RESOURCE.getZookeeperConnectString(), CombinedXacmlAclAuthorizer.XACML_PDP_URL_CFG_PROPERTY_NAME,
+		        "http://localhost:" + port + "/services/pdp" /* "http://localhost:8080/authzforce-ce/domains/A0bdIbmGEeWhFwcKrC9gSQ/pdp" */,
+		        CombinedXacmlAclAuthorizer.XACML_REQUEST_TEMPLATE_LOCATION_CFG_PROPERTY_NAME, XACML_REQ_TMPL_LOCATION));
 	}
 
 	private void testAuthorization(String username, boolean expectedAuthorized)
