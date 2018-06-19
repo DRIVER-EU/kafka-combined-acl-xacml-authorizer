@@ -25,6 +25,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import org.apache.cxf.ext.logging.LoggingFeature;
@@ -33,11 +34,13 @@ import org.apache.cxf.jaxrs.client.WebClient;
 import org.json.JSONObject;
 import org.ow2.authzforce.jaxrs.util.JsonRiJaxrsProvider;
 import org.ow2.authzforce.xacml.json.model.LimitsCheckingJSONObject;
-import org.ow2.authzforce.xacml.json.model.Xacml3JsonUtils;
+import org.ow2.authzforce.xacml.json.model.XacmlJsonUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.ResourceUtils;
 
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.ImmutableMap;
 
 import freemarker.cache.StringTemplateLoader;
@@ -86,7 +89,17 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 	 */
 	public static final String XACML_REQUEST_TEMPLATE_LOCATION_CFG_PROPERTY_NAME = "org.ow2.authzforce.kafka.pep.xacml.req.tmpl.location";
 
+	/**
+	 * Name of Kafka configuration property specifying the maximum number of authorization cache elements in memory. Cache is disabled iff the property value is undefined or not strictly positive.
+	 */
+	public static final String AUTHZ_CACHE_SIZE_MAX = "org.ow2.authzforce.kafka.pep.authz.cache.size.max";
+
 	private static final int MAX_JSON_STRING_LENGTH = 1000;
+
+	private interface AuthzDecisionEvaluator
+	{
+		boolean eval(final Session session, final Operation operation, final Resource resource, final Map<String, Object> extraAttributes);
+	}
 
 	/*
 	 * Max number of child elements - key-value pairs or items - in JSONObject/JSONArray
@@ -99,8 +112,10 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 
 	private Template xacmlReqTmpl = null;
 
+	private AuthzDecisionEvaluator decisionEvaluator = null;
+
 	@Override
-	public void configure(Map<String, ?> authorizerProperties)
+	public void configure(final Map<String, ?> authorizerProperties)
 	{
 		synchronized (CombinedXacmlAclAuthorizer.class)
 		{
@@ -133,7 +148,6 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 			}
 
 			final String xacmlReqTmplFileLocation = (String) xacmlReqTmplObj;
-			LOGGER.debug("Loading XACML Request template from authorizer configuration property '{}': {}", XACML_REQUEST_TEMPLATE_LOCATION_CFG_PROPERTY_NAME, xacmlReqTmplFileLocation);
 
 			final Path xacmlReqTmplFile;
 			try
@@ -145,6 +159,8 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 				throw new IllegalArgumentException(
 				        "XACML JSON Request template file not found at location ('" + XACML_REQUEST_TEMPLATE_LOCATION_CFG_PROPERTY_NAME + "'=) '" + xacmlReqTmplFileLocation + "'", e);
 			}
+
+			LOGGER.debug("Loading XACML Request template from file (based on authorizer configuration property '{}'): {}", XACML_REQUEST_TEMPLATE_LOCATION_CFG_PROPERTY_NAME, xacmlReqTmplFile);
 
 			final String xacmlReqTmplStr;
 			try
@@ -164,7 +180,7 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 				        + "': root key is not 'Request' as expected.");
 			}
 
-			Xacml3JsonUtils.REQUEST_SCHEMA.validate(jsonRequest);
+			XacmlJsonUtils.REQUEST_SCHEMA.validate(jsonRequest);
 
 			// Create your Configuration instance, and specify if up to what FreeMarker
 			// version (here 2.3.27) do you want to apply the fixes that are not 100%
@@ -198,15 +214,55 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 			{
 				throw new RuntimeException("Error getting XACML request template", e);
 			}
+
+			final Object pdpRespCacheMaxSizeObj = authorizerProperties.get(AUTHZ_CACHE_SIZE_MAX);
+			final long pdpRespCacheMaxSize = pdpRespCacheMaxSizeObj == null ? -1 : Long.valueOf((String) pdpRespCacheMaxSizeObj, 10);
+			if (pdpRespCacheMaxSize <= 0)
+			{
+				LOGGER.warn("Configuration property '{}' undefined or value <=0 -> authorization cache disabled", AUTHZ_CACHE_SIZE_MAX);
+				this.decisionEvaluator = (session, operation, resource, extraAttributes) -> evalAuthzDecision(session, operation, resource, extraAttributes);
+			}
+			else
+			{
+				LOGGER.debug("Configuration property '{}' = {}", AUTHZ_CACHE_SIZE_MAX, pdpRespCacheMaxSize);
+				final CacheBuilder<Object, Object> cacheBuilder = CacheBuilder.newBuilder().maximumSize(pdpRespCacheMaxSize);
+				// if (TTIsec > 0)
+				// {
+				// cacheBuilder.expireAfterAccess(TTIsec, TimeUnit.SECONDS);
+				// }
+				//
+				// if (TTLsec > 0)
+				// {
+				// cacheBuilder.expireAfterWrite(TTLsec, TimeUnit.SECONDS);
+				// }
+
+				/*
+				 * Cannot set memory store eviction policy (applied when max size reached), because Guava cache only supports LRU
+				 */
+				final Cache<Map<String, Object>, Boolean> authzCache = cacheBuilder.build();
+				this.decisionEvaluator = (session, operation, resource, extraAttributes) -> {
+					try
+					{
+						if (LOGGER.isDebugEnabled())
+						{
+							LOGGER.debug("Using authorization cache: {}", authzCache.stats());
+						}
+						return authzCache.get(extraAttributes, () -> evalAuthzDecision(session, operation, resource, extraAttributes));
+					}
+					catch (final ExecutionException e)
+					{
+						LOGGER.error("Error evaluating the authorization decision request: {} -> returning default Deny decision", extraAttributes, e);
+						return false;
+					}
+				};
+			}
+
 		}
 	}
 
-	@Override
-	public boolean authorize(Session session, Operation operation, Resource resource)
+	private boolean evalAuthzDecision(final Session session, final Operation operation, final Resource resource, final Map<String, Object> authzAttributes)
 	{
-		/*
-		 * TODO: implement and check decision cache before evaluating ACL and/or calling PDP
-		 */
+		LOGGER.error("Computing authorization decision for request: {}", authzAttributes);
 
 		final boolean simpleAclAuthorized = super.authorize(session, operation, resource);
 
@@ -221,27 +277,50 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 		 * Denied by ACL and pdpClient != null. Is it denied by XACML PDP?
 		 */
 		LOGGER.debug("Authorization denied by SimpleAclAuthorizer. Trying evaluation by XACML PDP...");
-		final Map<String, Object> root = ImmutableMap.of("clientHost", session.clientAddress(), "principal", session.principal(), "operation", operation.toJava(), "resourceType",
-		        resource.resourceType().toJava(), "resourceName", resource.name());
+
 		final StringWriter out = new StringWriter();
 		try
 		{
-			xacmlReqTmpl.process(root, out);
+			xacmlReqTmpl.process(authzAttributes, out);
 		}
 		catch (final Exception e)
 		{
-			LOGGER.error("Error generating XACML request from template with variables: {} -> DENY by default", root, e);
+			LOGGER.error("Error generating XACML request from template with variables: {} -> DENY by default", authzAttributes, e);
 			return false;
 		}
 
 		final String xacmlReq = out.toString();
 		final JSONObject jsonRequest = new JSONObject(xacmlReq);
+		/*
+		 * FIXME: handle potential exception
+		 */
 		final JSONObject jsonResponse = pdpClient.post(jsonRequest, JSONObject.class);
-		Xacml3JsonUtils.RESPONSE_SCHEMA.validate(jsonResponse);
+
+		/*
+		 * FIXME: handle potential exception
+		 */
+		XacmlJsonUtils.RESPONSE_SCHEMA.validate(jsonResponse);
+
 		final String decision = jsonResponse.getJSONArray("Response").getJSONObject(0).getString("Decision");
-		final boolean isAuthorized = decision.equals("Permit");
+		return decision.equals("Permit");
+	}
+
+	@Override
+	public boolean authorize(final Session session, final Operation operation, final Resource resource)
+	{
+		/*
+		 * TODO: implement and check decision cache before evaluating ACL and/or calling PDP
+		 */
+		final Map<String, Object> azAttributes = ImmutableMap.of("clientHost", session.clientAddress(), "principal", session.principal(), "operation", operation.toJava(), "resourceType",
+		        resource.resourceType().toJava(), "resourceName", resource.name());
+		final boolean isAuthorized = this.decisionEvaluator.eval(session, operation, resource, azAttributes);
 		LOGGER.debug("isAuthorized (true iff Permit) = {}", isAuthorized);
 		return isAuthorized;
 	}
+
+	// public static void main(final String... args)
+	// {
+	// System.out.println(org.apache.kafka.common.resource.ResourceType.TOPIC);
+	// }
 
 }

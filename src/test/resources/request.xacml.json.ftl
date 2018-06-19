@@ -13,11 +13,6 @@
                         "Value": "${principal.name}"
                     },
                     {
-                        "AttributeId": "urn:oasis:names:tc:xacml:1.0:subject:authn-locality:dns-name",
-                        "DataType":"urn:oasis:names:tc:xacml:2.0:data-type:dnsName",
-                        "Value": "${clientHost.hostName}"
-                    },
-                    {
                         "AttributeId": "urn:oasis:names:tc:xacml:3.0:subject:authn-locality:ip-address",
                         "DataType":"urn:oasis:names:tc:xacml:2.0:data-type:ipAddress",
                         "Value": "${clientHost.hostAddress}"
