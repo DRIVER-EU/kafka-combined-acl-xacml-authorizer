@@ -71,6 +71,7 @@ import kafka.security.auth.SimpleAclAuthorizer;
  * <li><code>resourceName</code> ({@link String}): resource name</li>
  * </ul>
  * </li>
+ * <li>{@value #AUTHZ_CACHE_SIZE_MAX}: maximum number of authorization decisions cached in memory. Cache is disabled iff the property value is undefined or not strictly positive.</li>
  * </ul>
  */
 public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
@@ -262,7 +263,7 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 
 	private boolean evalAuthzDecision(final Session session, final Operation operation, final Resource resource, final Map<String, Object> authzAttributes)
 	{
-		LOGGER.error("Computing authorization decision for request: {}", authzAttributes);
+		LOGGER.error("Calling SimpleAclAuthorizer: session={}, operation={}, resource={}", session, operation, resource);
 
 		final boolean simpleAclAuthorized = super.authorize(session, operation, resource);
 
@@ -276,7 +277,7 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 		/*
 		 * Denied by ACL and pdpClient != null. Is it denied by XACML PDP?
 		 */
-		LOGGER.debug("Authorization denied by SimpleAclAuthorizer. Trying evaluation by XACML PDP...");
+		LOGGER.debug("Authorization denied by SimpleAclAuthorizer. Trying XACML PDP with request attributes={}", authzAttributes);
 
 		final StringWriter out = new StringWriter();
 		try
@@ -313,6 +314,7 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 		 */
 		final Map<String, Object> azAttributes = ImmutableMap.of("clientHost", session.clientAddress(), "principal", session.principal(), "operation", operation.toJava(), "resourceType",
 		        resource.resourceType().toJava(), "resourceName", resource.name());
+		LOGGER.error("Authorizing access request: {}", azAttributes);
 		final boolean isAuthorized = this.decisionEvaluator.eval(session, operation, resource, azAttributes);
 		LOGGER.debug("isAuthorized (true iff Permit) = {}", isAuthorized);
 		return isAuthorized;

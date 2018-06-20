@@ -38,6 +38,8 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
 import org.ow2.authzforce.kafka.pep.CombinedXacmlAclAuthorizer;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.embedded.LocalServerPort;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.SpringBootTest.WebEnvironment;
@@ -64,6 +66,8 @@ import kafka.server.KafkaConfig;
 @SpringBootTest(classes = AuthzWsSpringBootApp.class, webEnvironment = WebEnvironment.RANDOM_PORT)
 public class CombinedXacmlAclAutorizerTest
 {
+	private static final Logger LOGGER = LoggerFactory.getLogger(AuthzWsSpringBootApp.class);
+
 	private static final String XACML_REQ_TMPL_LOCATION = "classpath:request.xacml.json.ftl";
 
 	private static final Map<ResourceType, Set<AclOperation>> OPS_BY_RESOURCE_TYPE = ImmutableMap.of(
@@ -160,6 +164,11 @@ public class CombinedXacmlAclAutorizerTest
 		final RequestChannel.Session session = new RequestChannel.Session(principal, InetAddress.getLoopbackAddress());
 		final Resource resource = new Resource(ResourceType$.MODULE$.fromJava(resourceType), resourceId);
 		Assert.assertEquals("Test failed.", expectedAuthorized, authorizer.authorize(session, Operation$.MODULE$.fromJava(op), resource));
+		if (authzCacheMaxSize > 0)
+		{
+			LOGGER.info("Testing authorization decision cache");
+			Assert.assertEquals("Test failed.", expectedAuthorized, authorizer.authorize(session, Operation$.MODULE$.fromJava(op), resource));
+		}
 	}
 
 	@Test
