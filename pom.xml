@@ -6,7 +6,7 @@
 	<parent>
 		<groupId>org.ow2.authzforce</groupId>
 		<artifactId>authzforce-ce-parent</artifactId>
-		<version>7.3.0</version>
+		<version>7.4.0</version>
 	</parent>
 	<artifactId>authzforce-ce-kafka-extensions</artifactId>
 	<version>0.2.1-SNAPSHOT</version>
@@ -107,7 +107,7 @@
 					<!-- TODO: fix vulnerabilities and switch back to true -->
 					<failBuildOnAnyVulnerability>false</failBuildOnAnyVulnerability>
 					<!-- TODO: change back to false before release -->
-					<skip>true</skip>
+					<skip>false</skip>
 				</configuration>
 				<executions>
 					<execution>
