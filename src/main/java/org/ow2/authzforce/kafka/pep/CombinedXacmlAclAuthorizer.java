@@ -72,6 +72,9 @@ import kafka.security.auth.SimpleAclAuthorizer;
  * </ul>
  * </li>
  * <li>{@value #AUTHZ_CACHE_SIZE_MAX}: maximum number of authorization decisions cached in memory. Cache is disabled iff the property value is undefined or not strictly positive.</li>
+ * <li>{@value #HTTP_CLIENT_CFG_LOCATION}: location (URL supported by Spring {@link org.springframework.util.ResourceUtils}) of the HTTP client configuration as defined by
+ * <a href="https://cxf.apache.org/docs/client-http-transport-including-ssl-support.html#ClientHTTPTransport(includingSSLsupport)-UsingConfiguration">Apache CXF format</a>, required for SSL
+ * settings</li>
  * </ul>
  */
 public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
@@ -94,6 +97,13 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 	 * Name of Kafka configuration property specifying the maximum number of authorization cache elements in memory. Cache is disabled iff the property value is undefined or not strictly positive.
 	 */
 	public static final String AUTHZ_CACHE_SIZE_MAX = "org.ow2.authzforce.kafka.pep.authz.cache.size.max";
+
+	/**
+	 * Name of Kafka configuration property specifying the location (URL supported by Spring {@link org.springframework.util.ResourceUtils}) of the HTTP client configuration as defined by
+	 * <a href="https://cxf.apache.org/docs/client-http-transport-including-ssl-support.html#ClientHTTPTransport(includingSSLsupport)-UsingConfiguration">Apache CXF format</a>, required for SSL
+	 * settings
+	 */
+	public static final String HTTP_CLIENT_CFG_LOCATION = "org.ow2.authzforce.kafka.pep.http.client.cfg.location";
 
 	private static final int MAX_JSON_STRING_LENGTH = 1000;
 
@@ -137,9 +147,24 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 			final String xacmlPdpUrlStr = (String) xacmlPdpUrlObj;
 			LOGGER.debug("XACML PDP URL set from authorizer configuration property '{}': {}", XACML_PDP_URL_CFG_PROPERTY_NAME, xacmlPdpUrlStr);
 
+			final Object cxfHttpClientCfgLocationObj = authorizerProperties.get(HTTP_CLIENT_CFG_LOCATION);
+			if (cxfHttpClientCfgLocationObj == null)
+			{
+				LOGGER.info("Configuration property '{}' undefined -> using default CXF HTTP client configuration", HTTP_CLIENT_CFG_LOCATION);
+				return;
+			}
+
+			if (!(cxfHttpClientCfgLocationObj instanceof String))
+			{
+				throw new IllegalArgumentException(this + ": authorizer configuration property '" + HTTP_CLIENT_CFG_LOCATION + "' is not a String");
+			}
+
+			final String cxfHttpClientCfgLocation = (String) cxfHttpClientCfgLocationObj;
+			LOGGER.debug("Location of HTTP client configuration (Apache CXF format) set from authorizer configuration property '{}': {}", HTTP_CLIENT_CFG_LOCATION, cxfHttpClientCfgLocation);
+
 			pdpClient = WebClient
 			        .create(xacmlPdpUrlStr, Collections.singletonList(new JsonRiJaxrsProvider(/* extra parameters */)),
-			                LOGGER.isDebugEnabled() ? Collections.singletonList(new LoggingFeature()) : Collections.<Feature>emptyList(), null /* clientConfClasspathLocation */)
+			                LOGGER.isDebugEnabled() ? Collections.singletonList(new LoggingFeature()) : Collections.<Feature>emptyList(), cxfHttpClientCfgLocation)
 			        .type(XACML_JSON_MEDIA_TYPE).accept(XACML_JSON_MEDIA_TYPE);
 
 			final Object xacmlReqTmplObj = authorizerProperties.get(XACML_REQUEST_TEMPLATE_LOCATION_CFG_PROPERTY_NAME);

@@ -6,9 +6,23 @@
     <http:conduit name="*.http-conduit">
         <http:client ConnectionTimeout="3000000" ReceiveTimeout="3000000"/>
         <http:tlsClientParameters disableCNCheck="true">
+        <sec:keyManagers keyPassword="changeit">
+				<sec:keyStore
+					type="pkcs12"
+					password="changeit"
+					file="target/test-classes/client.p12" />
+			</sec:keyManagers>
             <sec:trustManagers>
-                <sec:keyStore type="JKS" password="changeit" file="src/test/resources/truststore.jks"/>
+                <sec:keyStore type="JKS" password="changeit" file="target/test-classes/truststore.jks"/>
             </sec:trustManagers>
+            <sec:cipherSuites>
+				<sec:cipherSuite>TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA384</sec:cipherSuite>
+				<sec:cipherSuite>TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384</sec:cipherSuite>
+				<sec:cipherSuite>TLS_DHE_RSA_WITH_AES_256_CBC_SHA256</sec:cipherSuite>
+				<sec:cipherSuite>TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384</sec:cipherSuite>
+				<sec:cipherSuite>TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384</sec:cipherSuite>
+				<sec:cipherSuite>TLS_DHE_RSA_WITH_AES_256_GCM_SHA384</sec:cipherSuite>
+			</sec:cipherSuites>
         </http:tlsClientParameters>
     </http:conduit>
 </beans>

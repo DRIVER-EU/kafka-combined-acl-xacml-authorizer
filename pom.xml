@@ -19,12 +19,12 @@
 			<organizationUrl>http://thalesgroup.com</organizationUrl>
 		</developer>
 	</developers>
-	   <scm>
-      <connection>scm:git:https://github.com/DRIVER-EU/kafka-combined-acl-xacml-authorizer.git</connection>
-      <developerConnection>scm:git:https://github.com/DRIVER-EU/kafka-combined-acl-xacml-authorizer.git</developerConnection>
-      <tag>HEAD</tag>
-      <url>https://github.com/DRIVER-EU/kafka-combined-acl-xacml-authorizer</url>
-   </scm>
+	<scm>
+		<connection>scm:git:https://github.com/DRIVER-EU/kafka-combined-acl-xacml-authorizer.git</connection>
+		<developerConnection>scm:git:https://github.com/DRIVER-EU/kafka-combined-acl-xacml-authorizer.git</developerConnection>
+		<tag>HEAD</tag>
+		<url>https://github.com/DRIVER-EU/kafka-combined-acl-xacml-authorizer</url>
+	</scm>
 	<repositories>
 		<repository>
 			<!-- Required by owasp dependency-check plugin for find info (POM) about dependency org.everit.json.schema in child modules -->
@@ -32,6 +32,38 @@
 			<url>https://jitpack.io</url>
 		</repository>
 	</repositories>
+	<properties>
+		<!-- Remove spring.version after update authzforce-ce-parent to 7.5.0 -->
+		<spring.version>4.3.18.RELEASE</spring.version>
+	</properties>
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.springframework</groupId>
+				<artifactId>spring-core</artifactId>
+				<version>${spring.version}</version>
+				<exclusions>
+					<exclusion>
+						<!-- Replaced by jcl-over-slf4j dependency for redirecting logs to slf4j, see http://www.slf4j.org/legacy.html -->
+						<artifactId>commons-logging</artifactId>
+						<groupId>commons-logging</groupId>
+					</exclusion>
+				</exclusions>
+			</dependency>
+			<dependency>
+				<groupId>org.springframework</groupId>
+				<artifactId>spring-context</artifactId>
+				<version>${spring.version}</version>
+				<exclusions>
+					<exclusion>
+						<!-- Replaced by jcl-over-slf4j dependency for redirecting logs to slf4j, see http://www.slf4j.org/legacy.html -->
+						<artifactId>commons-logging</artifactId>
+						<groupId>commons-logging</groupId>
+					</exclusion>
+				</exclusions>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 	<dependencies>
 		<dependency>
 			<groupId>org.slf4j</groupId>
@@ -71,7 +103,7 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
-			<version>1.5.11.RELEASE</version>
+			<version>1.5.14.RELEASE</version>
 			<scope>test</scope>
 			<!-- jsonassert depends on com.vaadin.external.google:android-json whose classes conflict with org.json:json -->
 			<exclusions>
@@ -90,7 +122,7 @@
 		<dependency>
 			<groupId>eu.driver</groupId>
 			<artifactId>driver-testbed-sec-authz-service</artifactId>
-			<version>1.0.0</version>
+			<version>1.0.1-SNAPSHOT</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
