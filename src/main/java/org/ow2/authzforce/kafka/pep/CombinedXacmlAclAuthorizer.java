@@ -288,7 +288,7 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 
 	private boolean evalAuthzDecision(final Session session, final Operation operation, final Resource resource, final Map<String, Object> authzAttributes)
 	{
-		LOGGER.error("Calling SimpleAclAuthorizer: session={}, operation={}, resource={}", session, operation, resource);
+		LOGGER.debug("Calling SimpleAclAuthorizer: session={}, operation={}, resource={}", session, operation, resource);
 
 		final boolean simpleAclAuthorized = super.authorize(session, operation, resource);
 
@@ -339,7 +339,7 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 		 */
 		final Map<String, Object> azAttributes = ImmutableMap.of("clientHost", session.clientAddress(), "principal", session.principal(), "operation", operation.toJava(), "resourceType",
 		        resource.resourceType().toJava(), "resourceName", resource.name());
-		LOGGER.error("Authorizing access request: {}", azAttributes);
+		LOGGER.debug("Authorizing access request: {}", azAttributes);
 		final boolean isAuthorized = this.decisionEvaluator.eval(session, operation, resource, azAttributes);
 		LOGGER.debug("isAuthorized (true iff Permit) = {}", isAuthorized);
 		return isAuthorized;
