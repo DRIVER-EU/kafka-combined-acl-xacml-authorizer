@@ -72,7 +72,7 @@ public class CombinedXacmlAclAutorizerTest
 
 	private static final Map<ResourceType, Set<AclOperation>> OPS_BY_RESOURCE_TYPE = ImmutableMap.of(
 	        //
-	        ResourceType.CLUSTER, ImmutableSet.of(AclOperation.ALTER, AclOperation.CLUSTER_ACTION, AclOperation.CREATE, AclOperation.DESCRIBE, AclOperation.IDEMPOTENT_WRITE),
+	        ResourceType.CLUSTER, ImmutableSet.of(AclOperation.ALTER, /* AclOperation.CLUSTER_ACTION, AclOperation.CREATE, */ AclOperation.DESCRIBE, AclOperation.IDEMPOTENT_WRITE),
 	        //
 	        ResourceType.GROUP, ImmutableSet.of(AclOperation.READ, AclOperation.DESCRIBE, AclOperation.DELETE),
 	        //
@@ -129,8 +129,8 @@ public class CombinedXacmlAclAutorizerTest
 	public void setUp() throws IOException
 	{
 		authorizer.configure(ImmutableMap.of(KafkaConfig.ZkConnectProp(), SHARED_ZOOKEEPER_TEST_RESOURCE.getZookeeperConnectString(), CombinedXacmlAclAuthorizer.XACML_PDP_URL_CFG_PROPERTY_NAME,
-		        "http://localhost:" + port + "/services/authz/pdp", CombinedXacmlAclAuthorizer.XACML_REQUEST_TEMPLATE_LOCATION_CFG_PROPERTY_NAME, XACML_REQ_TMPL_LOCATION,
-		        CombinedXacmlAclAuthorizer.AUTHZ_CACHE_SIZE_MAX, Long.toString(authzCacheMaxSize, 10)));
+		        "https://localhost:" + port + "/services/authz/pdp", CombinedXacmlAclAuthorizer.XACML_REQUEST_TEMPLATE_LOCATION_CFG_PROPERTY_NAME, XACML_REQ_TMPL_LOCATION,
+		        CombinedXacmlAclAuthorizer.HTTP_CLIENT_CFG_LOCATION, "file:src/test/resources/http-client.xml", CombinedXacmlAclAuthorizer.AUTHZ_CACHE_SIZE_MAX, Long.toString(authzCacheMaxSize, 10)));
 	}
 
 	private void testAuthorizationForAllResourcesAndOperations(final String username, final boolean expectedAuthorized)

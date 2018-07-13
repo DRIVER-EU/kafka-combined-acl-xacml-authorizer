@@ -2,7 +2,7 @@
 	"policy": {
 		"id": "root",
 		"version": "1.0",
-		"description": "Currently address resource types GROUP and TOPIC, but there may be CLUSTER as well in the future",
+		"description": "Currently, there is only one 'policyRef' for Kafka resource type 'TOPIC', but there may be other resource types added in the future, such as GROUP and CLUSTER",
 		"combiningAlgId": "urn:oasis:names:tc:xacml:3.0:policy-combining-algorithm:deny-unless-permit",
 		"rules": [
 			{
@@ -27,6 +27,11 @@
 			}
 		],
 		"policies": [
+			{
+				"policyRef": {
+					"id": "resource.type=CLUSTER"
+				}
+			},
 			{
 				"policyRef": {
 					"id": "resource.type=TOPIC"
