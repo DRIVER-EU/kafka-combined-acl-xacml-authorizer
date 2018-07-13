@@ -2,6 +2,12 @@
 All notable changes to this project are documented in this file following the [Keep a CHANGELOG](http://keepachangelog.com) conventions.
 
 
+## 1.1.0
+### Fixed
+- Bad tagging
+- Release on Maven Central
+
+
 ## 1.0.0
 ### Changed 
 - Maven project version: authzforce-ce-parent: 7.4.0 -> Upgrade Apache CXF version (to fix a CVE): 3.2.5
