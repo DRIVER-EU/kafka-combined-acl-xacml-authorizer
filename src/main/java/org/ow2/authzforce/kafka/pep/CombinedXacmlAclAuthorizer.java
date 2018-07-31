@@ -148,12 +148,6 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 			LOGGER.debug("XACML PDP URL set from authorizer configuration property '{}': {}", XACML_PDP_URL_CFG_PROPERTY_NAME, xacmlPdpUrlStr);
 
 			final Object cxfHttpClientCfgLocationObj = authorizerProperties.get(HTTP_CLIENT_CFG_LOCATION);
-			if (cxfHttpClientCfgLocationObj == null)
-			{
-				LOGGER.info("Configuration property '{}' undefined -> using default CXF HTTP client configuration", HTTP_CLIENT_CFG_LOCATION);
-				return;
-			}
-
 			if (!(cxfHttpClientCfgLocationObj instanceof String))
 			{
 				throw new IllegalArgumentException(this + ": authorizer configuration property '" + HTTP_CLIENT_CFG_LOCATION + "' is not a String");
