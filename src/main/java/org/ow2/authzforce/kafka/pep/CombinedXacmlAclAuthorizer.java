@@ -148,14 +148,31 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 			LOGGER.debug("XACML PDP URL set from authorizer configuration property '{}': {}", XACML_PDP_URL_CFG_PROPERTY_NAME, xacmlPdpUrlStr);
 
 			final Object cxfHttpClientCfgLocationObj = authorizerProperties.get(HTTP_CLIENT_CFG_LOCATION);
-			if (!(cxfHttpClientCfgLocationObj instanceof String))
+			final String cxfHttpClientCfgLocation;
+			if (cxfHttpClientCfgLocationObj == null)
 			{
-				throw new IllegalArgumentException(this + ": authorizer configuration property '" + HTTP_CLIENT_CFG_LOCATION + "' is not a String");
+				LOGGER.info("Configuration property '{}' undefined -> using default Apache CXF HTTP client configuration", HTTP_CLIENT_CFG_LOCATION);
+				/*
+				 * When the CXF client config location is null, CXF uses some default configuration
+				 */
+				cxfHttpClientCfgLocation = null;
+			}
+			else
+			{
+				if (!(cxfHttpClientCfgLocationObj instanceof String))
+				{
+					throw new IllegalArgumentException(this + ": authorizer configuration property '" + HTTP_CLIENT_CFG_LOCATION + "' is not a String");
+				}
+
+				cxfHttpClientCfgLocation = (String) cxfHttpClientCfgLocationObj;
 			}
 
-			final String cxfHttpClientCfgLocation = (String) cxfHttpClientCfgLocationObj;
-			LOGGER.debug("Location of HTTP client configuration (Apache CXF format) set from authorizer configuration property '{}': {}", HTTP_CLIENT_CFG_LOCATION, cxfHttpClientCfgLocation);
+			LOGGER.debug("Location of HTTP client configuration (Apache CXF format) set from authorizer configuration property '{}': {} (default CXF configuration if null)", HTTP_CLIENT_CFG_LOCATION,
+			        cxfHttpClientCfgLocation);
 
+			/*
+			 * cxfHttpClientCfgLocation may be null -> default CXF configuration
+			 */
 			pdpClient = WebClient
 			        .create(xacmlPdpUrlStr, Collections.singletonList(new JsonRiJaxrsProvider(/* extra parameters */)),
 			                LOGGER.isDebugEnabled() ? Collections.singletonList(new LoggingFeature()) : Collections.<Feature>emptyList(), cxfHttpClientCfgLocation)
@@ -311,6 +328,7 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 
 		final String xacmlReq = out.toString();
 		final JSONObject jsonRequest = new JSONObject(xacmlReq);
+
 		/*
 		 * FIXME: handle potential exception
 		 */
@@ -328,9 +346,6 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 	@Override
 	public boolean authorize(final Session session, final Operation operation, final Resource resource)
 	{
-		/*
-		 * TODO: implement and check decision cache before evaluating ACL and/or calling PDP
-		 */
 		final Map<String, Object> azAttributes = ImmutableMap.of("clientHost", session.clientAddress(), "principal", session.principal(), "operation", operation.toJava(), "resourceType",
 		        resource.resourceType().toJava(), "resourceName", resource.name());
 		LOGGER.debug("Authorizing access request: {}", azAttributes);
