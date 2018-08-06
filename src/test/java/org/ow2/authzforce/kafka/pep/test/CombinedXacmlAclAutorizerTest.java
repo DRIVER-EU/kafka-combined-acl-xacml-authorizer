@@ -37,7 +37,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.junit.runners.Parameterized.Parameters;
-import org.ow2.authzforce.kafka.pep.CombinedXacmlAclAuthorizer;
+import org.ow2.authzforce.kafka.pep.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.embedded.LocalServerPort;
@@ -128,9 +128,14 @@ public class CombinedXacmlAclAutorizerTest
 	@Before
 	public void setUp() throws IOException
 	{
-		authorizer.configure(ImmutableMap.of(KafkaConfig.ZkConnectProp(), SHARED_ZOOKEEPER_TEST_RESOURCE.getZookeeperConnectString(), CombinedXacmlAclAuthorizer.XACML_PDP_URL_CFG_PROPERTY_NAME,
-		        "https://localhost:" + port + "/services/authz/pdp", CombinedXacmlAclAuthorizer.XACML_REQUEST_TEMPLATE_LOCATION_CFG_PROPERTY_NAME, XACML_REQ_TMPL_LOCATION,
-		        CombinedXacmlAclAuthorizer.HTTP_CLIENT_CFG_LOCATION, "file:src/test/resources/http-client.xml", CombinedXacmlAclAuthorizer.AUTHZ_CACHE_SIZE_MAX, Long.toString(authzCacheMaxSize, 10)));
+		authorizer.configure(
+		ImmutableMap.of(
+			KafkaConfig.ZkConnectProp(), SHARED_ZOOKEEPER_TEST_RESOURCE.getZookeeperConnectString(),
+			CombinedXacmlAclAuthorizer$.MODULE$.XACML_PDP_URL_CFG_PROPERTY_NAME(), "https://localhost:" + port + "/services/authz/pdp",
+			CombinedXacmlAclAuthorizer$.MODULE$.XACML_REQUEST_TEMPLATE_LOCATION_CFG_PROPERTY_NAME(), XACML_REQ_TMPL_LOCATION,
+		  CombinedXacmlAclAuthorizer$.MODULE$.HTTP_CLIENT_CFG_LOCATION(), "file:src/test/resources/http-client.xml",
+			CombinedXacmlAclAuthorizer$.MODULE$.AUTHZ_CACHE_SIZE_MAX(), Long.toString(authzCacheMaxSize, 10)
+		));
 	}
 
 	private void testAuthorizationForAllResourcesAndOperations(final String username, final boolean expectedAuthorized)
