@@ -7,7 +7,7 @@
 <!-- http://www.qos.ch/shop/products/professionalSupport -->
 <!-- -->
 <!-- More information: http://logback.qos.ch/faq.html#sharedConfiguration -->
-<configuration>
+<configuration debug="true">
 	<appender name="stdout" class="ch.qos.logback.core.ConsoleAppender">
 		<encoder>
 			<pattern>%-4r [%t] [%d] %5p [%C:%M] \(%F:%L\) - %m%n</pattern>
@@ -17,6 +17,9 @@
 	</appender>
 
 	<logger name="org.ow2.authzforce" additivity="false" level="INFO">
+		<appender-ref ref="stdout" />
+	</logger>
+	<logger name="org.ow2.authzforce.kafka" additivity="false" level="DEBUG">
 		<appender-ref ref="stdout" />
 	</logger>
 <!-- HTTP/JAX-RS/SOAP request/response debugging -->
@@ -30,7 +33,10 @@
    <!-- <logger name="org.apache.http" additivity="false" level="DEBUG"> <appender-ref 
       ref="error" /> </logger> <logger name="org.apache.http.wire" level="ERROR"> 
       <appender-ref ref="error" /> </logger> -->
-	<root level="INFO">
+      <logger name="org.apache.kafka" additivity="false" level="DEBUG">
+		<appender-ref ref="stdout" />
+	</logger>
+	<root level="DEBUG">
 		<appender-ref ref="stdout" />
 	</root>
 </configuration>

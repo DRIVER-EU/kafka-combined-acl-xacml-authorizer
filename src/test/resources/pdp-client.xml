@@ -10,7 +10,7 @@
 				<sec:keyStore
 					type="pkcs12"
 					password="changeit"
-					file="target/test-classes/client.p12" />
+					file="target/test-classes/kafka-server.p12" />
 			</sec:keyManagers>
             <sec:trustManagers>
                 <sec:keyStore type="JKS" password="changeit" file="target/test-classes/truststore.jks"/>

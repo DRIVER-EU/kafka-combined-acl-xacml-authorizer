@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 Thales Services SAS.
+ * Copyright 2018 THALES.
  *
  * This file is part of AuthzForce CE.
  *
@@ -21,16 +21,23 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.net.InetAddress;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Collections;
 import java.util.Map;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import org.apache.cxf.ext.logging.LoggingFeature;
 import org.apache.cxf.feature.Feature;
 import org.apache.cxf.jaxrs.client.WebClient;
+import org.apache.kafka.common.acl.AclOperation;
+import org.apache.kafka.common.resource.PatternType;
+import org.apache.kafka.common.resource.ResourceType;
+import org.apache.kafka.common.security.auth.KafkaPrincipal;
 import org.json.JSONObject;
 import org.ow2.authzforce.jaxrs.util.JsonRiJaxrsProvider;
 import org.ow2.authzforce.xacml.json.model.LimitsCheckingJSONObject;
@@ -41,16 +48,19 @@ import org.springframework.util.ResourceUtils;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 
 import freemarker.cache.StringTemplateLoader;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import freemarker.template.TemplateExceptionHandler;
+import kafka.network.RequestChannel;
 import kafka.network.RequestChannel.Session;
 import kafka.security.auth.Authorizer;
 import kafka.security.auth.Operation;
+import kafka.security.auth.Operation$;
 import kafka.security.auth.Resource;
+import kafka.security.auth.ResourceType$;
 import kafka.security.auth.SimpleAclAuthorizer;
 
 /**
@@ -109,7 +119,7 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 
 	private interface AuthzDecisionEvaluator
 	{
-		boolean eval(final Session session, final Operation operation, final Resource resource, final Map<String, Object> extraAttributes);
+		boolean eval(final Session session, final Operation operation, final Resource resource);
 	}
 
 	/*
@@ -119,11 +129,15 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 
 	private static final int MAX_JSON_DEPTH = 10;
 
+	private static final String KAFKA_ANONYMOUS_USER_NAME = KafkaPrincipal.ANONYMOUS.getName();
+
 	private WebClient pdpClient = null;
 
 	private Template xacmlReqTmpl = null;
 
 	private AuthzDecisionEvaluator decisionEvaluator = null;
+
+	private final Map<String, String> consumerGroupMemberships = new ConcurrentHashMap<>();
 
 	@Override
 	public void configure(final Map<String, ?> authorizerProperties)
@@ -210,15 +224,6 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 				        "Error opening XACML JSON Request template file at location ('" + XACML_REQUEST_TEMPLATE_LOCATION_CFG_PROPERTY_NAME + "'=) '" + xacmlReqTmplFileLocation + "'", e);
 			}
 
-			final JSONObject jsonRequest = new LimitsCheckingJSONObject(new StringReader(xacmlReqTmplStr), MAX_JSON_STRING_LENGTH, MAX_JSON_CHILDREN_COUNT, MAX_JSON_DEPTH);
-			if (!jsonRequest.has("Request"))
-			{
-				throw new IllegalArgumentException("Invalid XACML JSON Request template file at location ('" + XACML_REQUEST_TEMPLATE_LOCATION_CFG_PROPERTY_NAME + "'=) '" + xacmlReqTmplFile
-				        + "': root key is not 'Request' as expected.");
-			}
-
-			XacmlJsonUtils.REQUEST_SCHEMA.validate(jsonRequest);
-
 			// Create your Configuration instance, and specify if up to what FreeMarker
 			// version (here 2.3.27) do you want to apply the fixes that are not 100%
 			// backward-compatible. See the Configuration JavaDoc for details.
@@ -252,12 +257,47 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 				throw new RuntimeException("Error getting XACML request template", e);
 			}
 
+			/*
+			 * Validate the Freemarker template
+			 */
+			final KafkaPrincipal principal = new KafkaPrincipal(KafkaPrincipal.USER_TYPE, "alice");
+			final RequestChannel.Session testSession = new RequestChannel.Session(principal, InetAddress.getLoopbackAddress());
+			final Resource testResource = new Resource(ResourceType$.MODULE$.fromJava(ResourceType.TOPIC), "topic1", PatternType.LITERAL);
+			final Operation testOp = Operation$.MODULE$.fromJava(AclOperation.READ);
+			final Map<String, Object> testTmplVars = getTmplParams(testSession, testOp, testResource);
+			LOGGER.debug("Authorization denied by SimpleAclAuthorizer. Trying XACML PDP with request attributes={}", testTmplVars);
+
+			final StringWriter out = new StringWriter();
+			try
+			{
+				xacmlReqTmpl.process(testTmplVars, out);
+			}
+			catch (final Exception e)
+			{
+				throw new IllegalArgumentException("Invalid XACML JSON Request template file at location ('" + XACML_REQUEST_TEMPLATE_LOCATION_CFG_PROPERTY_NAME + "'=) '" + xacmlReqTmplFile
+				        + "': Error generating XACML request from template with test variables: " + testTmplVars, e);
+			}
+
+			final String xacmlReq = out.toString();
+
+			final JSONObject jsonRequest = new LimitsCheckingJSONObject(new StringReader(xacmlReq), MAX_JSON_STRING_LENGTH, MAX_JSON_CHILDREN_COUNT, MAX_JSON_DEPTH);
+			if (!jsonRequest.has("Request"))
+			{
+				throw new IllegalArgumentException("Invalid XACML JSON Request template file at location ('" + XACML_REQUEST_TEMPLATE_LOCATION_CFG_PROPERTY_NAME + "'=) '" + xacmlReqTmplFile
+				        + "': root key is not 'Request' as expected.");
+			}
+
+			XacmlJsonUtils.REQUEST_SCHEMA.validate(jsonRequest);
+
+			/*
+			 * PDP client cache configuration
+			 */
 			final Object pdpRespCacheMaxSizeObj = authorizerProperties.get(AUTHZ_CACHE_SIZE_MAX);
 			final long pdpRespCacheMaxSize = pdpRespCacheMaxSizeObj == null ? -1 : Long.valueOf((String) pdpRespCacheMaxSizeObj, 10);
 			if (pdpRespCacheMaxSize <= 0)
 			{
 				LOGGER.warn("Configuration property '{}' undefined or value <=0 -> authorization cache disabled", AUTHZ_CACHE_SIZE_MAX);
-				this.decisionEvaluator = (session, operation, resource, extraAttributes) -> evalAuthzDecision(session, operation, resource, extraAttributes);
+				this.decisionEvaluator = (session, operation, resource) -> evalAuthzDecision(session, operation, resource, Optional.empty());
 			}
 			else
 			{
@@ -277,18 +317,21 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 				 * Cannot set memory store eviction policy (applied when max size reached), because Guava cache only supports LRU
 				 */
 				final Cache<Map<String, Object>, Boolean> authzCache = cacheBuilder.build();
-				this.decisionEvaluator = (session, operation, resource, extraAttributes) -> {
+				this.decisionEvaluator = (session, operation, resource) -> {
+
+					final Map<String, Object> azAttributes = getTmplParams(session, operation, resource);
 					try
 					{
 						if (LOGGER.isDebugEnabled())
 						{
 							LOGGER.debug("Using authorization cache: {}", authzCache.stats());
 						}
-						return authzCache.get(extraAttributes, () -> evalAuthzDecision(session, operation, resource, extraAttributes));
+
+						return authzCache.get(azAttributes, () -> evalAuthzDecision(session, operation, resource, Optional.of(azAttributes)));
 					}
 					catch (final ExecutionException e)
 					{
-						LOGGER.error("Error evaluating the authorization decision request: {} -> returning default Deny decision", extraAttributes, e);
+						LOGGER.error("Error evaluating the authorization decision request: {} -> returning default Deny decision", azAttributes, e);
 						return false;
 					}
 				};
@@ -297,7 +340,56 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 		}
 	}
 
-	private boolean evalAuthzDecision(final Session session, final Operation operation, final Resource resource, final Map<String, Object> authzAttributes)
+	private static enum KAFKA_API_OPERATION
+	{
+		JOIN_GROUP, UNDEFINED;
+	}
+
+	private static String KAFKA_API_OPERATION_KEY = "kafka.api.operation";
+
+	private Map<String, Object> getTmplParams(final Session session, final Operation operation, final Resource resource)
+	{
+		final ResourceType jResourceType = resource.resourceType().toJava();
+		final AclOperation jAclOp = operation.toJava();
+		final KafkaPrincipal principal = session.principal();
+		final String principalName = principal.getName();
+
+		final KAFKA_API_OPERATION kafkaApiOp;
+		final String consumerGroupId;
+		if (principal.getPrincipalType().equals(KafkaPrincipal.USER_TYPE) && !principalName.equals(KAFKA_ANONYMOUS_USER_NAME))
+		{
+			/*
+			 * Join group
+			 */
+			if (jResourceType == ResourceType.GROUP && jAclOp == AclOperation.READ)
+			{
+				kafkaApiOp = KAFKA_API_OPERATION.JOIN_GROUP;
+				consumerGroupId = null;
+			}
+			else
+			{
+				kafkaApiOp = KAFKA_API_OPERATION.UNDEFINED;
+				consumerGroupId = consumerGroupMemberships.get(principalName);
+			}
+		}
+		else
+		{
+			kafkaApiOp = KAFKA_API_OPERATION.UNDEFINED;
+			consumerGroupId = null;
+		}
+
+		final Map<String, Object> azAttributes = Maps.newHashMapWithExpectedSize(6);
+		azAttributes.put("clientHost", session.clientAddress());
+		azAttributes.put("principal", principal);
+		azAttributes.put("consumerGroupId", consumerGroupId);
+		azAttributes.put("operation", jAclOp);
+		azAttributes.put("resourceType", jResourceType);
+		azAttributes.put("resourceName", resource.name());
+		azAttributes.put(KAFKA_API_OPERATION_KEY, kafkaApiOp);
+		return azAttributes;
+	}
+
+	private boolean evalAuthzDecision(final Session session, final Operation operation, final Resource resource, final Optional<Map<String, Object>> azAttributes)
 	{
 		LOGGER.debug("Calling SimpleAclAuthorizer: session={}, operation={}, resource={}", session, operation, resource);
 
@@ -313,6 +405,8 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 		/*
 		 * Denied by ACL and pdpClient != null. Is it denied by XACML PDP?
 		 */
+
+		final Map<String, Object> authzAttributes = azAttributes.orElseGet(() -> getTmplParams(session, operation, resource));
 		LOGGER.debug("Authorization denied by SimpleAclAuthorizer. Trying XACML PDP with request attributes={}", authzAttributes);
 
 		final StringWriter out = new StringWriter();
@@ -340,17 +434,34 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 		XacmlJsonUtils.RESPONSE_SCHEMA.validate(jsonResponse);
 
 		final String decision = jsonResponse.getJSONArray("Response").getJSONObject(0).getString("Decision");
-		return decision.equals("Permit");
+		final boolean isAuthorized = decision.equals("Permit");
+
+		/**
+		 * Handle group memberships (JoinGroup, LeaveGroup) and group-based permissions
+		 * <p>
+		 * TODO: how to differentiate JOIN from LEAVE? For the moment, consumer is considered having left a group only when joining another one (group overriden in consumerGroupMemberships map)
+		 */
+		if (isAuthorized && authzAttributes.get(KAFKA_API_OPERATION_KEY) == KAFKA_API_OPERATION.JOIN_GROUP)
+		{
+			/*
+			 * Join group
+			 */
+			consumerGroupMemberships.put(session.principal().getName(), resource.name());
+		}
+
+		return isAuthorized;
 	}
 
 	@Override
 	public boolean authorize(final Session session, final Operation operation, final Resource resource)
 	{
-		final Map<String, Object> azAttributes = ImmutableMap.of("clientHost", session.clientAddress(), "principal", session.principal(), "operation", operation.toJava(), "resourceType",
-		        resource.resourceType().toJava(), "resourceName", resource.name());
-		LOGGER.debug("Authorizing access request: {}", azAttributes);
-		final boolean isAuthorized = this.decisionEvaluator.eval(session, operation, resource, azAttributes);
+		// System.out.println(String.format("authorize( session=[%s], operation= [%s], resource.type=[%s], resource.name=[%s], resource.patternType=[%s] )", session, operation.toJava(),
+		// resource.resourceType().toJava(), resource.name(), resource.patternType()));
+		LOGGER.info("authorize( session=[{}], operation= [{}], resource=[{}] )", session, operation, resource);
+
+		final boolean isAuthorized = this.decisionEvaluator.eval(session, operation, resource);
 		LOGGER.debug("isAuthorized (true iff Permit) = {}", isAuthorized);
+
 		return isAuthorized;
 	}
 

@@ -17,6 +17,14 @@
                         "DataType":"urn:oasis:names:tc:xacml:2.0:data-type:ipAddress",
                         "Value": "${clientHost.hostAddress}"
                     }
+                    <#if consumerGroupId??>
+                    ,
+                    {
+                        "AttributeId": "urn:thalesgroup:xacml:group-id",
+                        "DataType":"http://www.w3.org/2001/XMLSchema#string",
+                        "Value": "${consumerGroupId}"
+                    }
+                    </#if>
                 ]
             },
 
