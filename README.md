@@ -52,3 +52,9 @@ Add the all JARs in the `lib` folder extracted earlier (*Installation* section) 
 ```sh
 ~/DRIVER+/kafka_2.11-1.1.0$ CLASSPATH=/opt/authzforce-ce-kafka-extensions/lib/* bin/kafka-server-start.sh config/server.properties
 ```
+
+## Known issue
+### Group-based permission ineffective for topic metadata/offset access control
+When calling poll(...) method, Java KafkaConsumers use DESCRIBE operation on topics to fetch topic metadata, before joining their consumer group (READ GROUP X) and reading topic data. Therefore, the Authorizer is unable to know the consumer group ID at this point. So group-based permissions cannot be used for topic metadata access control.
+
+See issue #7.

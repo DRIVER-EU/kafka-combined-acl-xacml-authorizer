@@ -77,6 +77,78 @@
 						}
 					]
 				}
+			},
+			{
+				"policy": {
+					"description": "Access to test kafka consumer group 'test' by Other Tool 1 (test user), i.e. join, leave, etc.",
+					"id": "resource.type=GROUP#resource.id=test",
+					"version": "1.0",
+					"target": [
+						[
+							[
+								{
+									"matchFunction": "urn:oasis:names:tc:xacml:1.0:function:string-equal",
+									"value": "test",
+									"attributeDesignator": {
+										"category": "urn:oasis:names:tc:xacml:3.0:attribute-category:resource",
+										"id": "urn:oasis:names:tc:xacml:1.0:resource:resource-id",
+										"dataType": "http://www.w3.org/2001/XMLSchema#string",
+										"mustBePresent": true
+									}
+								}
+							]
+						]
+					],
+					"combiningAlgId": "urn:oasis:names:tc:xacml:1.0:rule-combining-algorithm:first-applicable",
+					"rules": [
+						{
+							"id": "action.id={READ,DESCRIBE}",
+							"effect": "Permit",
+							"target": [
+								[
+									[
+										{
+											"matchFunction": "urn:oasis:names:tc:xacml:1.0:function:string-equal",
+											"value": "READ",
+											"attributeDesignator": {
+												"category": "urn:oasis:names:tc:xacml:3.0:attribute-category:action",
+												"id": "urn:oasis:names:tc:xacml:1.0:action:action-id",
+												"dataType": "http://www.w3.org/2001/XMLSchema#string",
+												"mustBePresent": true
+											}
+										}
+									],
+									[
+										{
+											"matchFunction": "urn:oasis:names:tc:xacml:1.0:function:string-equal",
+											"value": "DESCRIBE",
+											"attributeDesignator": {
+												"category": "urn:oasis:names:tc:xacml:3.0:attribute-category:action",
+												"id": "urn:oasis:names:tc:xacml:1.0:action:action-id",
+												"dataType": "http://www.w3.org/2001/XMLSchema#string",
+												"mustBePresent": true
+											}
+										}
+									]
+								],
+								[
+									[
+										{
+											"matchFunction": "urn:oasis:names:tc:xacml:1.0:function:string-equal",
+											"value": "CN=Other Tool 1,OU=Authz Service Dev Project,OU=WP923,O=DRIVER-PROJECT.EU",
+											"attributeDesignator": {
+												"category": "urn:oasis:names:tc:xacml:1.0:subject-category:access-subject",
+												"id": "urn:oasis:names:tc:xacml:1.0:subject:subject-id",
+												"dataType": "http://www.w3.org/2001/XMLSchema#string",
+												"mustBePresent": true
+											}
+										}
+									]
+								]
+							]
+						}
+					]
+				}
 			}
 		]
 	}

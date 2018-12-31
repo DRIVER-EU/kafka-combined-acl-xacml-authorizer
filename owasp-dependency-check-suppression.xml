@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<suppressions xmlns="https://jeremylong.github.io/DependencyCheck/dependency-suppression.1.1.xsd">
+	<suppress>
+		<!--See issue #8 on Github -->
+		<cve>CVE-2018-8088</cve>
+	</suppress>
+	<suppress>
+		<!-- See issue #9 on Github. False positive to be fixed in dependency-check: https://github.com/jeremylong/DependencyCheck/issues/1623 -->
+		<cve>CVE-2018-8012</cve>
+	</suppress>
+</suppressions>
