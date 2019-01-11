@@ -9,8 +9,9 @@
                 [
                     {
                         "AttributeId": "urn:oasis:names:tc:xacml:1.0:subject:subject-id",
-                        "DataType":"http://www.w3.org/2001/XMLSchema#string",
-                        "Value": "${principal.name}"
+                        "DataType":"urn:oasis:names:tc:xacml:1.0:data-type:x500Name",
+                        <#-- If principal name is 'ANONYMOUS', set subject-id to empty string which is valid x500Name, therefore we can still use x500Name in all cases. -->
+                        "Value": "<#if principal.name == "ANONYMOUS"><#else>${principal.name}</#if>"
                     },
                     {
                         "AttributeId": "urn:oasis:names:tc:xacml:3.0:subject:authn-locality:ip-address",
