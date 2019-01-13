@@ -2,6 +2,13 @@
 All notable changes to this project are documented in this file following the [Keep a CHANGELOG](http://keepachangelog.com) conventions.
 
 
+## 1.3.0
+### Changed
+- Log level for authorize() method calls to DEBUG
+- Copyright year to 2019
+- Improved testing
+
+
 ## 1.2.0
 ### Changed
 - Maven parent project version (authzforce-ce-parent): 7.5.0
