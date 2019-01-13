@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 THALES.
+ * Copyright 2019 THALES.
  *
  * This file is part of AuthzForce CE.
  *
@@ -457,7 +457,7 @@ public class CombinedXacmlAclAuthorizer extends SimpleAclAuthorizer
 	{
 		// System.out.println(String.format("authorize( session=[%s], operation= [%s], resource.type=[%s], resource.name=[%s], resource.patternType=[%s] )", session, operation.toJava(),
 		// resource.resourceType().toJava(), resource.name(), resource.patternType()));
-		LOGGER.info("authorize( session=[{}], operation= [{}], resource=[{}] )", session, operation, resource);
+		LOGGER.debug("authorize( session=[{}], operation= [{}], resource=[{}] )", session, operation, resource);
 
 		final boolean isAuthorized = this.decisionEvaluator.eval(session, operation, resource);
 		LOGGER.debug("isAuthorized (true iff Permit) = {}", isAuthorized);

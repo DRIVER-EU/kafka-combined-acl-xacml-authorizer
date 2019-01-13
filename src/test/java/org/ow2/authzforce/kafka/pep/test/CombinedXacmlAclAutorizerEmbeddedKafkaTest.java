@@ -1,5 +1,5 @@
 /**
- * Copyright 2018 THALES.
+ * Copyright 2019 THALES.
  *
  * This file is part of AuthzForce CE.
  *

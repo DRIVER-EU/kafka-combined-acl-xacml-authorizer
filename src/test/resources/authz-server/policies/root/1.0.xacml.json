@@ -6,31 +6,19 @@
 		"combiningAlgId": "urn:oasis:names:tc:xacml:3.0:policy-combining-algorithm:deny-unless-permit",
 		"rules": [
 			{
-				"id": "Superadmins",
+				"id": "Superadmin",
 				"effect": "Permit",
 				"target": [
 					[
 						[
 							{
-								"matchFunction": "urn:oasis:names:tc:xacml:1.0:function:string-equal",
-								"value": "admin",
-								"attributeDesignator": {
-									"category": "urn:oasis:names:tc:xacml:1.0:subject-category:access-subject",
-									"id": "urn:oasis:names:tc:xacml:1.0:subject:subject-id",
-									"dataType": "http://www.w3.org/2001/XMLSchema#string",
-									"mustBePresent": true
-								}
-							}
-						],
-						[
-							{
-								"matchFunction": "urn:oasis:names:tc:xacml:1.0:function:string-equal",
+								"matchFunction": "urn:oasis:names:tc:xacml:1.0:function:x500Name-equal",
 								"value": "CN=Admin Client,OU=Authz Service Dev Project,OU=WP923,O=DRIVER-PROJECT.eu",
 								"attributeDesignator": {
 									"category": "urn:oasis:names:tc:xacml:1.0:subject-category:access-subject",
 									"id": "urn:oasis:names:tc:xacml:1.0:subject:subject-id",
-									"dataType": "http://www.w3.org/2001/XMLSchema#string",
-									"mustBePresent": true
+									"dataType": "urn:oasis:names:tc:xacml:1.0:data-type:x500Name",
+									"mustBePresent": false
 								}
 							}
 						]
