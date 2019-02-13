@@ -35,6 +35,7 @@ To enable XACML evaluation, set the extra following authorizer properties:
 | --- | --- | --- |
 |`clientHost` | [java.net.InetAddress](https://docs.oracle.com/javase/8/docs/api/java/net/InetAddress.html) | client/user host name or IP address |
 |`principal`| [org.apache.kafka.common.security.auth.KafkaPrincipal](https://kafka.apache.org/11/javadoc/org/apache/kafka/common/security/auth/KafkaPrincipal.html)| user principal|
+|`consumerGroupId`|`String`|consumer group ID|
 |`operation`|[org.apache.kafka.common.acl.AclOperation](http://kafka.apache.org/11/javadoc/index.html?org/apache/kafka/common/acl/AclOperation.html)|operation|
 |`resourceType`|[org.apache.kafka.common.resource.ResourceType](https://kafka.apache.org/11/javadoc/org/apache/kafka/common/resource/ResourceType.html)|resource type|
 |`resourceName`|`String`|resource name|
